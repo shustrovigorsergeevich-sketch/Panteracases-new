@@ -2,28 +2,649 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panthera Cases</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Telegram Mini App - Case Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        /* Полностью синий фон приложения */
         body {
-            background-color: #121212;
+            background: linear-gradient(180deg, #0a192f 0%, #0d2547 100%);
             color: #ffffff;
-            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Верхняя панель с балансом */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(16, 37, 66, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #1e3a5f;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .user-info {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .balance-container {
+            display: flex;
+            align-items: center;
+            background: #132f54;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #2a528a;
+            gap: 6px;
+        }
+
+        .balance-text {
+            font-weight: bold;
+            color: #4da6ff;
+        }
+
+        .add-btn {
+            background: #0088cc;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* Контент страниц */
+        .content {
+            flex: 1;
+            padding: 15px;
+            padding-bottom: 80px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Главная страница (Кейс) */
+        .case-card {
+            background: #102a4a;
+            border: 2px solid #1e4976;
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .case-card:active {
+            transform: scale(0.98);
+        }
+
+        .case-card img {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+            margin-bottom: 15px;
+        }
+
+        .case-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .case-price-btn {
+            background: #0088cc;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 12px;
+            display: inline-block;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Экран открытия кейса */
+        .case-open-view {
+            display: none;
+            text-align: center;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: #4da6ff;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            text-align: left;
+            display: block;
+        }
+
+        /* Рулетка / Лента */
+        .roulette-container {
+            width: 100%;
+            height: 120px;
+            background: #0b1d3a;
+            border: 2px solid #0088cc;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .roulette-pointer {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: #ffcc00;
+            z-index: 10;
+            box-shadow: 0 0 10px #ffcc00;
+        }
+
+        .roulette-track {
+            display: flex;
+            position: absolute;
+            left: 0;
+            top: 10px;
+            height: 100px;
+            transition: transform 0s ease-out;
+        }
+
+        .roulette-item {
+            min-width: 90px;
+            height: 90px;
+            background: #132f54;
+            border: 1px solid #2a528a;
+            border-radius: 8px;
+            margin: 0 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+        }
+
+        .roulette-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        .roulette-item span {
+            font-size: 10px;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80px;
+        }
+
+        .open-btn {
+            background: #0088cc;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 25px;
+        }
+
+        .open-btn:disabled {
+            background: #2a528a;
+            opacity: 0.6;
+        }
+
+        /* Список наград внизу кейса */
+        .rewards-title {
+            text-align: left;
+            font-size: 16px;
+            color: #88bbee;
+            margin-bottom: 12px;
+        }
+
+        .rewards-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .reward-card {
+            background: #102a4a;
+            border: 1px solid #1e4976;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .reward-card img {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+
+        .reward-info {
+            text-align: left;
+        }
+
+        .reward-name {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .reward-price {
+            font-size: 12px;
+            color: #ffcc00;
+        }
+
+        /* Профиль и Инвентарь */
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .inventory-item {
+            background: #102a4a;
+            border: 1px solid #1e4976;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .inventory-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        /* Пополнение */
+        .deposit-box {
+            background: #102a4a;
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .deposit-input {
+            width: 100%;
+            padding: 12px;
+            background: #0b1d3a;
+            border: 1px solid #2a528a;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        /* Модальное окно выигрыша */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
         }
-        h1 {
-            color: #ff9800;
+
+        .modal-content {
+            background: #102a4a;
+            border: 2px solid #0088cc;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 320px;
         }
-        .container {
-            margin-top: 50px;
+
+        .modal-content img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            margin: 15px 0;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-sell { background: #ffcc00; color: #000; }
+        .btn-keep { background: #0088cc; color: #fff; }
+
+        /* Нижнее меню */
+        .navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #0b1d3a;
+            border-top: 1px solid #1e3a5f;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #88bbee;
+            font-size: 12px;
+            text-decoration: none;
+            cursor: pointer;
+            width: 33%;
+        }
+
+        .nav-item.active {
+            color: #0088cc;
+            font-weight: bold;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            margin-bottom: 2px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Panthera Cases</h1>
-        <p>Приложение успешно загружено!</p>
+
+    <!-- Шапка -->
+    <div class="header">
+        <div class="user-info" id="username">Игрок</div>
+        <div class="balance-container">
+            <span class="balance-text" id="balance">0 ⭐</span>
+            <button class="add-btn" onclick="switchPage('deposit')">+</button>
+        </div>
     </div>
-</body>
-</html>
+
+    <!-- Основной Контент -->
+    <div class="content">
+
+        <!-- СТРАНИЦА: Профиль (слева) -->
+        <div id="page-profile" class="page">
+            <h2>Профиль</h2>
+            <p style="color: #88bbee; margin-top: 5px;">Ваш инвентарь подарков:</p>
+            <div class="inventory-grid" id="inventory-list">
+                <!-- Заполняется из JS -->
+            </div>
+        </div>
+
+        <!-- СТРАНИЦА: Главная (посередине) -->
+        <div id="page-main" class="page active">
+            <!-- Список кейсов -->
+            <div id="case-list-view">
+                <h2>Доступные Кейсы</h2>
+                <div class="case-card" onclick="openCaseView()">
+                    <img src="1000023540.png" alt="Кейс Новый">
+                    <div class="case-title">Кейс «Новый»</div>
+                    <div class="case-price-btn">Открыть за 200 ⭐</div>
+                </div>
+            </div>
+
+            <!-- Экран детального просмотра кейса -->
+            <div id="case-open-view" class="case-open-view">
+                <button class="back-btn" onclick="closeCaseView()">← Назад к кейсам</button>
+                <img src="1000023540.png" style="width: 120px; height: 120px; object-fit: contain;">
+                <h2>Кейс «Новый»</h2>
+
+                <!-- Рулетка -->
+                <div class="roulette-container">
+                    <div class="roulette-pointer"></div>
+                    <div class="roulette-track" id="roulette-track"></div>
+                </div>
+
+                <button class="open-btn" id="spin-btn" onclick="spinCase()">Открыть за 200 ⭐</button>
+
+                <!-- Содержимое от дорогого к дешёвому -->
+                <div class="rewards-title">Содержимое кейса:</div>
+                <div class="rewards-list" id="rewards-list"></div>
+            </div>
+        </div>
+
+        <!-- СТРАНИЦА: Пополнить (справа) -->
+        <div id="page-deposit" class="page">
+            <h2>Пополнение баланса</h2>
+            <div class="deposit-box" style="margin-top: 15px;">
+                <p>Введите количество Stars для пополнения (от 100 Stars):</p>
+                <input type="number" id="deposit-amount" class="deposit-input" value="100" min="100">
+                <button class="open-btn" onclick="processDeposit()">Пополнить через Telegram</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Модальное окно выигрыша -->
+    <div class="modal" id="win-modal">
+        <div class="modal-content">
+            <h3>Поздравляем!</h3>
+            <p>Вам выпал предмет:</p>
+            <img id="win-img" src="" alt="">
+            <h4 id="win-title"></h4>
+            <p id="win-price" style="color: #ffcc00; margin-bottom: 15px;"></p>
+            <button class="modal-btn btn-sell" id="sell-btn">Продать</button>
+            <button class="modal-btn btn-keep" id="keep-btn">Забрать в инвентарь</button>
+        </div>
+    </div>
+
+    <!-- Нижняя Навигация -->
+    <div class="navbar">
+        <div class="nav-item" id="nav-profile" onclick="switchPage('profile')">
+            <span class="nav-icon">👤</span>
+            <span>Профиль</span>
+        </div>
+        <div class="nav-item active" id="nav-main" onclick="switchPage('main')">
+            <span class="nav-icon">🏠</span>
+            <span>Главная</span>
+        </div>
+        <div class="nav-item" id="nav-deposit" onclick="switchPage('deposit')">
+            <span class="nav-icon">💳</span>
+            <span>Пополнить</span>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) tg.expand();
+
+        // Данные наград (от дорогого к дешёвому)
+        const gifts = [
+            { id: 4, name: 'Toy Bear', price: 3631, file: '1000023548.webp' },
+            { id: 7, name: 'Signet ring', price: 3603, file: '1000023545.webp' },
+            { id: 1, name: 'Diamond ring', price: 3275, file: '1000023551.webp' },
+            { id: 3, name: 'Sky stilettos', price: 1933, file: '1000023549.webp' },
+            { id: 2, name: 'Love potion', price: 1563, file: '1000023550.webp' },
+            { id: 6, name: 'Input key', price: 703, file: '1000023546.webp' },
+            { id: 11, name: 'Light sword', price: 702, file: '1000023541.webp' },
+            { id: 5, name: 'Restless Jar', price: 700, file: '1000023547.webp' },
+            { id: 8, name: 'Ginger cookie', price: 600, file: '1000023544.webp' },
+            { id: 9, name: 'Happy Brownie', price: 500, file: '1000023543.webp' },
+            { id: 10, name: 'Instant ramen', price: 500, file: '1000023542.webp' },
+            { id: 16, name: 'Cup', price: 100, file: '1000023553.png' },
+            { id: 17, name: 'Ring', price: 100, file: '1000023552.png' },
+            { id: 15, name: 'Rocket', price: 50, file: '1000023554.png' },
+            { id: 14, name: 'Gift box', price: 25, file: '1000023555.png' },
+            { id: 12, name: 'Bear', price: 15, file: '1000023557.png' },
+            { id: 13, name: 'Heart', price: 15, file: '1000023556.png' }
+        ];
+
+        let balance = 1000; // Стартовый баланс для теста
+        let inventory = [];
+        let isSpinning = false;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            updateBalance();
+            renderRewardsList();
+            renderInventory();
+            
+            if (tg?.initDataUnsafe?.user) {
+                document.getElementById('username').innerText = tg.initDataUnsafe.user.first_name;
+            }
+        });
+
+        // Переключение навигации
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            document.getElementById(`page-${page}`).classList.add('active');
+            document.getElementById(`nav-${page}`).classList.add('active');
+        }
+
+        function openCaseView() {
+            document.getElementById('case-list-view').style.display = 'none';
+            document.getElementById('case-open-view').style.display = 'block';
+            setupRouletteTrack();
+        }
+
+        function closeCaseView() {
+            document.getElementById('case-list-view').style.display = 'block';
+            document.getElementById('case-open-view').style.display = 'none';
+        }
+
+        function updateBalance() {
+            document.getElementById('balance').innerText = `${balance} ⭐`;
+        }
+
+        // Отрисовка списка под кейсом
+        function renderRewardsList() {
+            const list = document.getElementById('rewards-list');
+            list.innerHTML = gifts.map(g => `
+                <div class="reward-card">
+                    <img src="${g.file}" alt="${g.name}">
+                    <div class="reward-info">
+                        <div class="reward-name">${g.name}</div>
+                        <div class="reward-price">${g.price} ⭐</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Подготовка ленты
+        function setupRouletteTrack() {
+            const track = document.getElementById('roulette-track');
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0px)';
+            
+            let trackHTML = '';
+            for (let i = 0; i < 40; i++) {
+                const randomGift = gifts[Math.floor(Math.random() * gifts.length)];
+                trackHTML += `
+                    <div class="roulette-item">
+                        <img src="${randomGift.file}">
+                        <span>${randomGift.name}</span>
+                    </div>
+                `;
+            }
+            track.innerHTML = trackHTML;
+        }
+
+        // Вращение кейса
+        function spinCase() {
+            if (isSpinning) return;
+            if (balance < 200) {
+                alert('Недостаточно Stars! Пополните баланс.');
+                return;
+            }
+
+            balance -= 200;
+            updateBalance();
+            isSpinning = true;
+            document.getElementById('spin-btn').disabled = true;
+
+            const winGift = gifts[Math.floor(Math.random() * gifts.length)];
+            
+            // Настройка ленты с финальным предметом
+            const track = document.getElementById('roulette-track');
+            setupRouletteTrack();
+            
+            const items = track.children;
+            const targetIndex = 28;
+            items[targetIndex].innerHTML = `
+                <img src="${winGift.file}">
+                <span>${winGift.name}</span>
+            `;
+
+            // Вычисление смещения (каждая карточка ~100px)
+            const itemWidth = 100;
+            const targetOffset = -(targetIndex * itemWidth - 120);
+
+            setTimeout(() => {
+                track.style.transition = 'transform 5s cubic-bezier(0.1, 1, 0.1, 1)';
+                track.style.transform = `translateX(${targetOffset}px)`;
+            }, 50);
+
+            setTimeout(() => {
+                showWinModal(winGift);
+                isSpinning = false;
+                document.getElementById('spin-btn').disabled = false;
+            }, 5200);
+        }
+
+        // Модалка результата
+        function showWinModal(gift) {
+            const modal = document.getElementById('win-modal');
+            document.getElementById('win-img').src = gift.file;
+            document.getElementById('win-title').innerText = gift.name;
+            document.getElementById('win-price').innerText = `Ценность: ${gift.price} ⭐`;
+
+            document.getElementById('sell-btn').onclick = () => {
+                balance += gift.price;
+                updateBalance();
+                modal.style.display = 'none';
+            };
+
+            document.getElementById('keep-btn').onclick = () => {
+                inventory.push(gift);
+                renderInventory();
+                modal.style.display = 'none';
+            };
+
+            modal.style.display = 'flex';
+        }
+
+        fu
